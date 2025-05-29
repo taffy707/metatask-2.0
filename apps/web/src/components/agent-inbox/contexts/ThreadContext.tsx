@@ -8,7 +8,13 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/client";
 import { Run, Thread, ThreadStatus } from "@langchain/langgraph-sdk";
-import React, { Dispatch, SetStateAction, useTransition, useRef, useCallback } from "react";
+import React, {
+  Dispatch,
+  SetStateAction,
+  useTransition,
+  useRef,
+  useCallback,
+} from "react";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 import { IMPROPER_SCHEMA } from "../constants";
 import {
@@ -74,9 +80,11 @@ function ThreadsProviderInternal<
     ThreadData<Record<string, any>>[]
   >([]);
   const [hasMoreThreads, setHasMoreThreads] = React.useState(true);
-  
+
   // Performance optimization: debounce requests and cache results
-  const requestCacheRef = useRef(new Map<string, Promise<ThreadData<Record<string, any>>[]>>());
+  const requestCacheRef = useRef(
+    new Map<string, Promise<ThreadData<Record<string, any>>[]>>(),
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
   const batchProcessorRef = useRef(ThreadBatchProcessor.getInstance());
 
@@ -86,14 +94,14 @@ function ThreadsProviderInternal<
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
+
       // Create new abort controller for this request
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
-      
+
       // Create cache key for request deduplication
       const cacheKey = `${agentId}:${deploymentId}:${inboxParam}:${offsetParam}:${limitParam}`;
-      
+
       // Return existing promise if same request is already in flight
       if (requestCacheRef.current.has(cacheKey)) {
         const existingRequest = requestCacheRef.current.get(cacheKey)!;
@@ -124,19 +132,23 @@ function ThreadsProviderInternal<
       setLoading(true);
 
       const client = createClient(deploymentId, session.accessToken);
-      
+
       // Create the request promise for caching
-      const requestPromise = executeThreadsFetch(client, agentId, abortController.signal);
+      const requestPromise = executeThreadsFetch(
+        client,
+        agentId,
+        abortController.signal,
+      );
       requestCacheRef.current.set(cacheKey, requestPromise);
-      
+
       try {
         const processedData = await requestPromise;
-        
+
         // Check if request was aborted
         if (abortController.signal.aborted) {
           return;
         }
-        
+
         setThreadData(processedData);
         setHasMoreThreads(processedData.length === limitParam);
       } catch (e) {
@@ -144,14 +156,14 @@ function ThreadsProviderInternal<
         if (abortController.signal.aborted) {
           return;
         }
-        
+
         logger.error("Failed to fetch threads", e);
         toast.error("Failed to load threads. Please try again.");
       } finally {
         // Clean up cache and loading state
         requestCacheRef.current.delete(cacheKey);
         setLoading(false);
-        
+
         // Clear abort controller if it's the current one
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
@@ -160,20 +172,21 @@ function ThreadsProviderInternal<
     },
     [offsetParam, limitParam, inboxParam, session?.accessToken, agentInboxId],
   );
-  
+
   // Extracted method for the actual API calls to improve performance
-  const executeThreadsFetch = useCallback(async (
-    client: any,
-    agentId: string,
-    abortSignal: AbortSignal
-  ): Promise<ThreadData<Record<string, any>>[]> => {
-    const timerName = `fetch-threads-${agentId}`;
-    performanceMonitor.startTimer(timerName, { 
-      agentId, 
-      inbox: inboxParam, 
-      limit: limitParam, 
-      offset: offsetParam 
-    });
+  const executeThreadsFetch = useCallback(
+    async (
+      client: any,
+      agentId: string,
+      abortSignal: AbortSignal,
+    ): Promise<ThreadData<Record<string, any>>[]> => {
+      const timerName = `fetch-threads-${agentId}`;
+      performanceMonitor.startTimer(timerName, {
+        agentId,
+        inbox: inboxParam,
+        limit: limitParam,
+        offset: offsetParam,
+      });
 
       // Use the values from queryParams
       const limit = limitParam;
@@ -210,53 +223,55 @@ function ThreadsProviderInternal<
       let threads;
       let retryCount = 0;
       const maxRetries = 2;
-      
+
       while (retryCount <= maxRetries) {
         try {
           // Add timeout to thread search request
           const searchPromise = client.threads.search(threadSearchArgs);
           const timeoutPromise = new Promise((_, reject) => {
             const timeout = setTimeout(() => {
-              reject(new Error('Thread search request timeout'));
+              reject(new Error("Thread search request timeout"));
             }, 20000); // 20 second timeout
-            
-            abortSignal.addEventListener('abort', () => {
+
+            abortSignal.addEventListener("abort", () => {
               clearTimeout(timeout);
-              reject(new Error('Request aborted'));
+              reject(new Error("Request aborted"));
             });
           });
-          
+
           threads = await Promise.race([searchPromise, timeoutPromise]);
           break; // Success, exit retry loop
         } catch (error: any) {
           retryCount++;
-          
+
           if (retryCount > maxRetries) {
             throw error; // Give up after max retries
           }
-          
+
           // Check if request was aborted
           if (abortSignal.aborted) {
-            throw new Error('Request aborted');
+            throw new Error("Request aborted");
           }
-          
+
           // Exponential backoff: wait 1s, then 2s, then 4s
           const delay = Math.pow(2, retryCount - 1) * 1000;
-          console.warn(`Thread search attempt ${retryCount} failed, retrying in ${delay}ms...`);
-          
-          await new Promise(resolve => {
+          console.warn(
+            `Thread search attempt ${retryCount} failed, retrying in ${delay}ms...`,
+          );
+
+          await new Promise((resolve) => {
             const timeout = setTimeout(resolve, delay);
-            abortSignal.addEventListener('abort', () => {
+            abortSignal.addEventListener("abort", () => {
               clearTimeout(timeout);
               resolve(undefined);
             });
           });
         }
       }
-      
+
       // Check for abort before processing
       if (abortSignal.aborted) {
-        throw new Error('Request aborted');
+        throw new Error("Request aborted");
       }
 
       // Use optimized batch processor for better performance
@@ -264,7 +279,7 @@ function ThreadsProviderInternal<
         threads as Thread<ThreadValues>[],
         client,
         inboxParam,
-        abortSignal
+        abortSignal,
       );
 
       const sortedData = processedData.sort((a, b) => {
@@ -274,13 +289,17 @@ function ThreadsProviderInternal<
         );
       });
 
-      performanceMonitor.endTimer(timerName, { 
+      performanceMonitor.endTimer(timerName, {
         threadsCount: sortedData.length,
-        hasExpensiveOperations: sortedData.some(d => d.status === 'interrupted' && !d.interrupts)
+        hasExpensiveOperations: sortedData.some(
+          (d) => d.status === "interrupted" && !d.interrupts,
+        ),
       });
 
       return sortedData;
-  }, [limitParam, offsetParam, inboxParam]);
+    },
+    [limitParam, offsetParam, inboxParam],
+  );
 
   // Effect to fetch threads when parameters change
   React.useEffect(() => {
@@ -302,7 +321,7 @@ function ThreadsProviderInternal<
       // Always reset loading state in case of error
       setLoading(false);
     }
-    
+
     // Cleanup function to abort ongoing requests when component unmounts or dependencies change
     return () => {
       if (abortControllerRef.current) {

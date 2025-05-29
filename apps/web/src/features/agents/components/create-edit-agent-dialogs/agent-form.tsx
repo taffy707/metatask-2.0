@@ -218,7 +218,9 @@ export function AgentFieldsForm({
           <>
             <Separator />
             <div className="flex w-full flex-col items-start justify-start gap-2">
-              <p className="text-lg font-semibold tracking-tight">Agent Knowledge Base</p>
+              <p className="text-lg font-semibold tracking-tight">
+                Agent Knowledge Base
+              </p>
               <Controller
                 control={form.control}
                 name={`config.${ragConfigurations[0].label}`}

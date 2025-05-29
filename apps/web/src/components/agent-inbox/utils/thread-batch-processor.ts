@@ -5,14 +5,17 @@
 
 import { Thread, ThreadState } from "@langchain/langgraph-sdk";
 import { ThreadData } from "../types";
-import { processThreadWithoutInterrupts, getInterruptFromThread } from "../contexts/utils";
+import {
+  processThreadWithoutInterrupts,
+  getInterruptFromThread,
+} from "../contexts/utils";
 import { IMPROPER_SCHEMA } from "../constants";
 
 export class ThreadBatchProcessor {
   private static instance: ThreadBatchProcessor;
   private stateCache = new Map<string, Promise<ThreadState | null>>();
   private readonly CACHE_TTL = 30000; // 30 seconds
-  
+
   // Circuit breaker pattern for API failures
   private failureCount = 0;
   private lastFailureTime = 0;
@@ -33,7 +36,7 @@ export class ThreadBatchProcessor {
     threads: Thread<ThreadValues>[],
     client: any,
     inboxParam: string,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
   ): Promise<ThreadData<ThreadValues>[]> {
     const results: ThreadData<ThreadValues>[] = [];
     const threadsNeedingState: Thread<ThreadValues>[] = [];
@@ -41,11 +44,14 @@ export class ThreadBatchProcessor {
     // First pass: process threads that don't need expensive state calls
     for (const thread of threads) {
       if (abortSignal.aborted) {
-        throw new Error('Request aborted');
+        throw new Error("Request aborted");
       }
 
       // Handle special cases for human_response_needed inbox
-      if (inboxParam === "human_response_needed" && thread.status !== "interrupted") {
+      if (
+        inboxParam === "human_response_needed" &&
+        thread.status !== "interrupted"
+      ) {
         results.push({
           status: "human_response_needed" as any,
           thread,
@@ -102,12 +108,12 @@ export class ThreadBatchProcessor {
       const stateResults = await this.batchFetchStates(
         threadsNeedingState,
         client,
-        abortSignal
+        abortSignal,
       );
 
       for (const { thread, state } of stateResults) {
         if (abortSignal.aborted) {
-          throw new Error('Request aborted');
+          throw new Error("Request aborted");
         }
 
         try {
@@ -147,22 +153,34 @@ export class ThreadBatchProcessor {
   private async batchFetchStates<ThreadValues extends Record<string, any>>(
     threads: Thread<ThreadValues>[],
     client: any,
-    abortSignal: AbortSignal
-  ): Promise<Array<{ thread: Thread<ThreadValues>; state: ThreadState<ThreadValues> | null }>> {
+    abortSignal: AbortSignal,
+  ): Promise<
+    Array<{
+      thread: Thread<ThreadValues>;
+      state: ThreadState<ThreadValues> | null;
+    }>
+  > {
     // Limit concurrent state fetches to prevent overwhelming the API
     const CONCURRENT_LIMIT = 2; // Reduced from 5 to 2 for better API stability
-    const results: Array<{ thread: Thread<ThreadValues>; state: ThreadState<ThreadValues> | null }> = [];
+    const results: Array<{
+      thread: Thread<ThreadValues>;
+      state: ThreadState<ThreadValues> | null;
+    }> = [];
 
     // Process threads in batches of CONCURRENT_LIMIT
     for (let i = 0; i < threads.length; i += CONCURRENT_LIMIT) {
       if (abortSignal.aborted) {
-        throw new Error('Request aborted');
+        throw new Error("Request aborted");
       }
 
       const batch = threads.slice(i, i + CONCURRENT_LIMIT);
       const batchPromises = batch.map(async (thread) => {
         try {
-          const state = await this.getCachedState(thread.thread_id, client, abortSignal);
+          const state = await this.getCachedState(
+            thread.thread_id,
+            client,
+            abortSignal,
+          );
           return { thread, state };
         } catch (_error) {
           // If individual state fetch fails, return null state
@@ -183,10 +201,10 @@ export class ThreadBatchProcessor {
   private async getCachedState<ThreadValues extends Record<string, any>>(
     threadId: string,
     client: any,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
   ): Promise<ThreadState<ThreadValues> | null> {
     const cacheKey = `${threadId}:${Date.now() - (Date.now() % this.CACHE_TTL)}`;
-    
+
     if (this.stateCache.has(cacheKey)) {
       const cached = await this.stateCache.get(cacheKey)!;
       return cached as ThreadState<ThreadValues> | null;
@@ -209,11 +227,11 @@ export class ThreadBatchProcessor {
   private async fetchState(
     threadId: string,
     client: any,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
   ): Promise<ThreadState | null> {
     try {
       if (abortSignal.aborted) {
-        throw new Error('Request aborted');
+        throw new Error("Request aborted");
       }
 
       // Add timeout to prevent hanging requests
@@ -221,11 +239,11 @@ export class ThreadBatchProcessor {
         const timeout = setTimeout(() => {
           reject(new Error(`Request timeout for thread ${threadId}`));
         }, 15000); // 15 second timeout
-        
+
         // Clean up timeout if request completes
-        abortSignal.addEventListener('abort', () => {
+        abortSignal.addEventListener("abort", () => {
           clearTimeout(timeout);
-          reject(new Error('Request aborted'));
+          reject(new Error("Request aborted"));
         });
       });
 
@@ -237,7 +255,7 @@ export class ThreadBatchProcessor {
       if (abortSignal.aborted) {
         throw error;
       }
-      
+
       // Track failure for circuit breaker
       this.recordFailure();
       console.warn(`Failed to fetch state for thread ${threadId}:`, error);
@@ -250,13 +268,13 @@ export class ThreadBatchProcessor {
    */
   private isCircuitOpen(): boolean {
     const now = Date.now();
-    
+
     // Reset failure count if outside failure window
     if (now - this.lastFailureTime > this.FAILURE_WINDOW) {
       this.failureCount = 0;
       return false;
     }
-    
+
     return this.failureCount >= this.MAX_FAILURES;
   }
 

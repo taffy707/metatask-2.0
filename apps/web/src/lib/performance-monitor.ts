@@ -27,8 +27,8 @@ class PerformanceMonitor {
   startTimer(name: string, metadata?: Record<string, any>): void {
     const startTime = performance.now();
     this.activeTimers.set(name, startTime);
-    
-    if (process.env.NODE_ENV === 'development') {
+
+    if (process.env.NODE_ENV === "development") {
       // Development timing only
     }
   }
@@ -62,7 +62,7 @@ class PerformanceMonitor {
       this.metrics = this.metrics.slice(-100);
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // Development logging only - use browser dev tools for detailed timing
     }
 
@@ -74,7 +74,7 @@ class PerformanceMonitor {
    */
   getMetrics(name?: string): PerformanceMetric[] {
     if (name) {
-      return this.metrics.filter(m => m.name === name);
+      return this.metrics.filter((m) => m.name === name);
     }
     return [...this.metrics];
   }
@@ -85,7 +85,7 @@ class PerformanceMonitor {
   getAverageDuration(name: string): number {
     const matching = this.getMetrics(name);
     if (matching.length === 0) return 0;
-    
+
     const total = matching.reduce((sum, m) => sum + m.duration, 0);
     return total / matching.length;
   }
@@ -102,30 +102,34 @@ class PerformanceMonitor {
    * Generate a performance report
    */
   generateReport(): string {
-    const report = ['🚀 Performance Report', '=================='];
-    
-    const metricsByName = this.metrics.reduce((acc, metric) => {
-      if (!acc[metric.name]) {
-        acc[metric.name] = [];
-      }
-      acc[metric.name].push(metric);
-      return acc;
-    }, {} as Record<string, PerformanceMetric[]>);
+    const report = ["🚀 Performance Report", "=================="];
+
+    const metricsByName = this.metrics.reduce(
+      (acc, metric) => {
+        if (!acc[metric.name]) {
+          acc[metric.name] = [];
+        }
+        acc[metric.name].push(metric);
+        return acc;
+      },
+      {} as Record<string, PerformanceMetric[]>,
+    );
 
     Object.entries(metricsByName).forEach(([name, metrics]) => {
-      const avg = metrics.reduce((sum, m) => sum + m.duration, 0) / metrics.length;
-      const min = Math.min(...metrics.map(m => m.duration));
-      const max = Math.max(...metrics.map(m => m.duration));
-      
+      const avg =
+        metrics.reduce((sum, m) => sum + m.duration, 0) / metrics.length;
+      const min = Math.min(...metrics.map((m) => m.duration));
+      const max = Math.max(...metrics.map((m) => m.duration));
+
       report.push(`${name}:`);
       report.push(`  Count: ${metrics.length}`);
       report.push(`  Average: ${avg.toFixed(2)}ms`);
       report.push(`  Min: ${min.toFixed(2)}ms`);
       report.push(`  Max: ${max.toFixed(2)}ms`);
-      report.push('');
+      report.push("");
     });
 
-    return report.join('\n');
+    return report.join("\n");
   }
 }
 
@@ -135,7 +139,11 @@ export const performanceMonitor = PerformanceMonitor.getInstance();
  * Decorator for timing async functions
  */
 export function timed(name?: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor,
+  ) {
     const originalMethod = descriptor.value;
     const timerName = name || `${target.constructor.name}.${propertyKey}`;
 
@@ -159,7 +167,7 @@ export function timed(name?: string) {
 export async function timeAsync<T>(
   name: string,
   fn: () => Promise<T>,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
 ): Promise<T> {
   performanceMonitor.startTimer(name, metadata);
   try {

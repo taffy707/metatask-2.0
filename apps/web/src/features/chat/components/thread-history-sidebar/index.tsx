@@ -2,7 +2,14 @@
 
 import { cn } from "@/lib/utils";
 import { Message, Thread } from "@langchain/langgraph-sdk";
-import { useEffect, useState, forwardRef, ForwardedRef, useMemo, useCallback } from "react";
+import {
+  useEffect,
+  useState,
+  forwardRef,
+  ForwardedRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useQueryState } from "nuqs";
 import { createClient } from "@/lib/client";
 import { toast } from "sonner";
@@ -17,9 +24,9 @@ import { performanceMonitor } from "@/lib/performance-monitor";
 // High-performance cache with instant loading
 class ThreadsCache {
   private static instance: ThreadsCache;
-  private cache = new Map<string, { data: Thread[]; timestamp: number; }>();
+  private cache = new Map<string, { data: Thread[]; timestamp: number }>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private readonly STORAGE_KEY = 'thread_history_cache';
+  private readonly STORAGE_KEY = "thread_history_cache";
 
   static getInstance(): ThreadsCache {
     if (!ThreadsCache.instance) {
@@ -60,16 +67,16 @@ class ThreadsCache {
   get(agentId: string, deploymentId: string): Thread[] | null {
     const key = this.getCacheKey(agentId, deploymentId);
     const cached = this.cache.get(key);
-    
+
     if (!cached) return null;
-    
+
     // Check if cache is still valid
     if (Date.now() - cached.timestamp > this.CACHE_DURATION) {
       this.cache.delete(key);
       this.saveToStorage();
       return null;
     }
-    
+
     return cached.data;
   }
 
@@ -77,7 +84,7 @@ class ThreadsCache {
     const key = this.getCacheKey(agentId, deploymentId);
     this.cache.set(key, {
       data: [...data], // Clone to prevent mutations
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
     this.saveToStorage();
   }
@@ -104,17 +111,21 @@ class RequestManager {
   async fetchThreads(
     agentId: string,
     deploymentId: string,
-    accessToken: string
+    accessToken: string,
   ): Promise<Thread[]> {
     const key = `${agentId}:${deploymentId}`;
-    
+
     // Return existing promise if request is already in flight
     if (this.activeRequests.has(key)) {
       return this.activeRequests.get(key)!;
     }
 
     // Create new request
-    const requestPromise = this.createRequest(agentId, deploymentId, accessToken);
+    const requestPromise = this.createRequest(
+      agentId,
+      deploymentId,
+      accessToken,
+    );
     this.activeRequests.set(key, requestPromise);
 
     try {
@@ -129,11 +140,11 @@ class RequestManager {
   private async createRequest(
     agentId: string,
     deploymentId: string,
-    accessToken: string
+    accessToken: string,
   ): Promise<Thread[]> {
     const timerName = `thread-history-${agentId}`;
     performanceMonitor.startTimer(timerName, { agentId, deploymentId });
-    
+
     try {
       const client = createClient(deploymentId, accessToken);
       const threads = await client.threads.search({
@@ -142,17 +153,17 @@ class RequestManager {
           assistant_id: agentId,
         },
       });
-      
-      performanceMonitor.endTimer(timerName, { 
+
+      performanceMonitor.endTimer(timerName, {
         threadsCount: threads.length,
-        fromCache: false
+        fromCache: false,
       });
-      
+
       return threads;
     } catch (error) {
-      performanceMonitor.endTimer(timerName, { 
+      performanceMonitor.endTimer(timerName, {
         error: true,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : "Unknown error",
       });
       throw error;
     }
@@ -233,10 +244,10 @@ export const ThreadHistorySidebar = forwardRef<
   const [threadId, setThreadId] = useQueryState("threadId");
   const [agentId] = useQueryState("agentId");
   const [deploymentId] = useQueryState("deploymentId");
-  
+
   const cache = useMemo(() => ThreadsCache.getInstance(), []);
   const requestManager = useMemo(() => RequestManager.getInstance(), []);
-  
+
   // Initialize with cached data immediately for instant loading
   const [threadsState, setThreadsState] = useState<ThreadsState>(() => {
     if (agentId && deploymentId) {
@@ -259,54 +270,62 @@ export const ThreadHistorySidebar = forwardRef<
   });
 
   // Ultra-fast fetch with aggressive caching
-  const fetchThreads = useCallback(async (
-    _agentId: string,
-    _deploymentId: string,
-    accessToken: string,
-    backgroundRefresh = false
-  ) => {
-    // Check if request is already in flight
-    if (requestManager.isRequestActive(_agentId, _deploymentId)) {
-      return;
-    }
-
-    // For background refresh, don't show loading state
-    if (!backgroundRefresh) {
-      setThreadsState(prev => ({
-        ...prev,
-        loading: true,
-        error: null,
-      }));
-    }
-
-    try {
-      // Use request manager for deduplication
-      const threads = await requestManager.fetchThreads(_agentId, _deploymentId, accessToken);
-      
-      // Cache the results immediately
-      cache.set(_agentId, _deploymentId, threads);
-      
-      setThreadsState({
-        data: threads,
-        loading: false,
-        error: null,
-        fromCache: false,
-      });
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Failed to fetch threads";
-      
-      setThreadsState(prev => ({
-        ...prev,
-        loading: false,
-        error: errorMessage,
-      }));
-      
-      // Only show toast for non-background errors
-      if (!backgroundRefresh) {
-        toast.error("Failed to load thread history");
+  const fetchThreads = useCallback(
+    async (
+      _agentId: string,
+      _deploymentId: string,
+      accessToken: string,
+      backgroundRefresh = false,
+    ) => {
+      // Check if request is already in flight
+      if (requestManager.isRequestActive(_agentId, _deploymentId)) {
+        return;
       }
-    }
-  }, [cache, requestManager]);
+
+      // For background refresh, don't show loading state
+      if (!backgroundRefresh) {
+        setThreadsState((prev) => ({
+          ...prev,
+          loading: true,
+          error: null,
+        }));
+      }
+
+      try {
+        // Use request manager for deduplication
+        const threads = await requestManager.fetchThreads(
+          _agentId,
+          _deploymentId,
+          accessToken,
+        );
+
+        // Cache the results immediately
+        cache.set(_agentId, _deploymentId, threads);
+
+        setThreadsState({
+          data: threads,
+          loading: false,
+          error: null,
+          fromCache: false,
+        });
+      } catch (e) {
+        const errorMessage =
+          e instanceof Error ? e.message : "Failed to fetch threads";
+
+        setThreadsState((prev) => ({
+          ...prev,
+          loading: false,
+          error: errorMessage,
+        }));
+
+        // Only show toast for non-background errors
+        if (!backgroundRefresh) {
+          toast.error("Failed to load thread history");
+        }
+      }
+    },
+    [cache, requestManager],
+  );
 
   // Instant cache loading on parameter changes
   useEffect(() => {
@@ -323,12 +342,14 @@ export const ThreadHistorySidebar = forwardRef<
         error: null,
         fromCache: true,
       });
-      
+
       // Start background refresh for fresh data only if cache is older than 1 minute
       const cachedEntry = cache.get(agentId, deploymentId);
-      const cacheTimestamp = cachedEntry ? (cachedEntry as any).timestamp || 0 : 0;
+      const cacheTimestamp = cachedEntry
+        ? (cachedEntry as any).timestamp || 0
+        : 0;
       const isStale = Date.now() - cacheTimestamp > 60000; // 1 minute
-      
+
       if (isStale && session?.accessToken) {
         setTimeout(() => {
           if (session?.accessToken) {
@@ -369,7 +390,10 @@ export const ThreadHistorySidebar = forwardRef<
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold">History</h2>
               {threadsState.fromCache && (
-                <div className="size-2 rounded-full bg-blue-500 opacity-50" title="Loaded from cache" />
+                <div
+                  className="size-2 rounded-full bg-blue-500 opacity-50"
+                  title="Loaded from cache"
+                />
               )}
             </div>
           </div>
@@ -384,11 +408,13 @@ export const ThreadHistorySidebar = forwardRef<
               ))}
             </div>
           ) : threadsState.error ? (
-            <div className="flex flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
-              <AlertCircle className="size-8 text-destructive" />
+            <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 p-6 text-center text-sm">
+              <AlertCircle className="text-destructive size-8" />
               <div>
-                <p className="text-destructive font-medium">Failed to load history</p>
-                <p className="text-xs mt-1">{threadsState.error}</p>
+                <p className="text-destructive font-medium">
+                  Failed to load history
+                </p>
+                <p className="mt-1 text-xs">{threadsState.error}</p>
               </div>
               <Button
                 onClick={handleRetry}
@@ -396,7 +422,7 @@ export const ThreadHistorySidebar = forwardRef<
                 variant="outline"
                 className="h-8 text-xs"
               >
-                <RefreshCw className="size-3 mr-1" />
+                <RefreshCw className="mr-1 size-3" />
                 Retry
               </Button>
             </div>
