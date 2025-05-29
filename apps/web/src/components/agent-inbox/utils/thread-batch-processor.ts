@@ -176,7 +176,7 @@ export class ThreadBatchProcessor {
       const batch = threads.slice(i, i + CONCURRENT_LIMIT);
       const batchPromises = batch.map(async (thread) => {
         try {
-          const state = await this.getCachedState(
+          const state = await this.getCachedState<ThreadValues>(
             thread.thread_id,
             client,
             abortSignal,

@@ -21,10 +21,11 @@ import { LangGraphLogoSVG } from "@/components/icons/langgraph";
 import { TooltipIconButton } from "@/components/ui/tooltip-icon-button";
 import {
   ArrowDown,
-  LoaderCircle,
   SquarePen,
   AlertCircle,
   Plus,
+  ArrowRight,
+  Square,
 } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
@@ -41,6 +42,7 @@ import { isUserSpecifiedDefaultAgent } from "@/lib/agent-utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { ContentBlocksPreview } from "./messages/ContentBlocksPreview";
+import { EnhancedInput } from "@/components/ui/enhanced-input";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -439,7 +441,7 @@ export function Thread() {
                     blocks={contentBlocks}
                     onRemove={removeBlock}
                   />
-                  <textarea
+                  <EnhancedInput
                     name="input"
                     onChange={(e) => setHasInput(!!e.target.value.trim())}
                     onPaste={handlePaste}
@@ -455,8 +457,20 @@ export function Thread() {
                         form?.requestSubmit();
                       }
                     }}
-                    placeholder="Type your message..."
-                    className="field-sizing-content resize-none border-none bg-transparent p-3.5 pb-0 shadow-none ring-0 outline-none focus:ring-0 focus:outline-none"
+                    placeholders={[
+                      "Analyze this data and create a summary report",
+                      "Help me write a professional email to my team",
+                      "Generate a marketing strategy for my product",
+                      "Review this code and suggest improvements",
+                      "Create a project timeline with milestones",
+                      "Write documentation for this API endpoint",
+                      "Help me debug this error message",
+                      "Translate this content into multiple languages",
+                      "Generate test cases for this feature",
+                      "Create a presentation outline for my pitch"
+                    ]}
+                    className="border-none bg-transparent shadow-none"
+                    hasMessages={hasMessages}
                   />
 
                   <div className="flex items-center gap-6 p-2 pt-4">
@@ -497,20 +511,25 @@ export function Thread() {
                       <Button
                         key="stop"
                         onClick={() => stream.stop()}
-                        className="ml-auto"
+                        size="icon"
+                        className="ml-auto h-10 w-10 rounded-full bg-gray-600 hover:bg-gray-700 text-white border-0 shadow-sm transition-all"
                       >
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                        Cancel
+                        <Square className="h-4 w-4" fill="currentColor" />
                       </Button>
                     ) : (
                       <Button
                         type="submit"
-                        className="ml-auto shadow-md transition-all"
+                        size="icon"
+                        className={`ml-auto h-10 w-10 rounded-full border-0 shadow-sm transition-all ${
+                          hasInput || contentBlocks.length > 0
+                            ? "bg-black hover:bg-gray-800 text-white"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-600"
+                        }`}
                         disabled={
                           isLoading || (!hasInput && contentBlocks.length === 0)
                         }
                       >
-                        Send
+                        <ArrowRight className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
