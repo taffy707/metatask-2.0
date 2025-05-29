@@ -12,6 +12,12 @@ export class ThreadBatchProcessor {
   private static instance: ThreadBatchProcessor;
   private stateCache = new Map<string, Promise<ThreadState | null>>();
   private readonly CACHE_TTL = 30000; // 30 seconds
+  
+  // Circuit breaker pattern for API failures
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private readonly MAX_FAILURES = 3;
+  private readonly FAILURE_WINDOW = 60000; // 1 minute
 
   static getInstance(): ThreadBatchProcessor {
     if (!ThreadBatchProcessor.instance) {
@@ -62,6 +68,18 @@ export class ThreadBatchProcessor {
                 interrupt?.action_request?.action === IMPROPER_SCHEMA ||
                 !interrupt?.action_request?.action,
             ),
+          });
+          continue;
+        }
+
+        // Check circuit breaker before adding expensive operations
+        if (this.isCircuitOpen()) {
+          // Circuit is open, skip expensive state calls
+          results.push({
+            status: "interrupted" as const,
+            thread,
+            interrupts: undefined,
+            invalidSchema: true,
           });
           continue;
         }
@@ -132,7 +150,7 @@ export class ThreadBatchProcessor {
     abortSignal: AbortSignal
   ): Promise<Array<{ thread: Thread<ThreadValues>; state: ThreadState<ThreadValues> | null }>> {
     // Limit concurrent state fetches to prevent overwhelming the API
-    const CONCURRENT_LIMIT = 5;
+    const CONCURRENT_LIMIT = 2; // Reduced from 5 to 2 for better API stability
     const results: Array<{ thread: Thread<ThreadValues>; state: ThreadState<ThreadValues> | null }> = [];
 
     // Process threads in batches of CONCURRENT_LIMIT
@@ -186,7 +204,7 @@ export class ThreadBatchProcessor {
   }
 
   /**
-   * Fetch thread state with abort support
+   * Fetch thread state with abort support and timeout
    */
   private async fetchState(
     threadId: string,
@@ -198,7 +216,21 @@ export class ThreadBatchProcessor {
         throw new Error('Request aborted');
       }
 
-      const state = await client.threads.getState(threadId);
+      // Add timeout to prevent hanging requests
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error(`Request timeout for thread ${threadId}`));
+        }, 15000); // 15 second timeout
+        
+        // Clean up timeout if request completes
+        abortSignal.addEventListener('abort', () => {
+          clearTimeout(timeout);
+          reject(new Error('Request aborted'));
+        });
+      });
+
+      const statePromise = client.threads.getState(threadId);
+      const state = await Promise.race([statePromise, timeoutPromise]);
       return state;
     } catch (error) {
       // If aborted, don't log as error
@@ -206,9 +238,34 @@ export class ThreadBatchProcessor {
         throw error;
       }
       
+      // Track failure for circuit breaker
+      this.recordFailure();
       console.warn(`Failed to fetch state for thread ${threadId}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Circuit breaker: check if too many recent failures
+   */
+  private isCircuitOpen(): boolean {
+    const now = Date.now();
+    
+    // Reset failure count if outside failure window
+    if (now - this.lastFailureTime > this.FAILURE_WINDOW) {
+      this.failureCount = 0;
+      return false;
+    }
+    
+    return this.failureCount >= this.MAX_FAILURES;
+  }
+
+  /**
+   * Record a failure for circuit breaker
+   */
+  private recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
   }
 
   /**
@@ -216,5 +273,8 @@ export class ThreadBatchProcessor {
    */
   clearCache(): void {
     this.stateCache.clear();
+    // Reset circuit breaker
+    this.failureCount = 0;
+    this.lastFailureTime = 0;
   }
 }

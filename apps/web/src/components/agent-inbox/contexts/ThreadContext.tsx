@@ -206,7 +206,40 @@ function ThreadsProviderInternal<
         },
       };
 
-      const threads = await client.threads.search(threadSearchArgs);
+      // Add retry logic for thread search with exponential backoff
+      let threads;
+      let retryCount = 0;
+      const maxRetries = 2;
+      
+      while (retryCount <= maxRetries) {
+        try {
+          threads = await client.threads.search(threadSearchArgs);
+          break; // Success, exit retry loop
+        } catch (error: any) {
+          retryCount++;
+          
+          if (retryCount > maxRetries) {
+            throw error; // Give up after max retries
+          }
+          
+          // Check if request was aborted
+          if (abortSignal.aborted) {
+            throw new Error('Request aborted');
+          }
+          
+          // Exponential backoff: wait 1s, then 2s, then 4s
+          const delay = Math.pow(2, retryCount - 1) * 1000;
+          console.warn(`Thread search attempt ${retryCount} failed, retrying in ${delay}ms...`);
+          
+          await new Promise(resolve => {
+            const timeout = setTimeout(resolve, delay);
+            abortSignal.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              resolve(undefined);
+            });
+          });
+        }
+      }
       
       // Check for abort before processing
       if (abortSignal.aborted) {
