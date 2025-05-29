@@ -12,6 +12,7 @@ import { useAuthContext } from "@/providers/Auth";
 import { MessageContent } from "@langchain/core/messages";
 import { FileClock, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { performanceMonitor } from "@/lib/performance-monitor";
 
 // High-performance cache with instant loading
 class ThreadsCache {
@@ -130,14 +131,31 @@ class RequestManager {
     deploymentId: string,
     accessToken: string
   ): Promise<Thread[]> {
-    const client = createClient(deploymentId, accessToken);
-    const threads = await client.threads.search({
-      limit: 100,
-      metadata: {
-        assistant_id: agentId,
-      },
-    });
-    return threads;
+    const timerName = `thread-history-${agentId}`;
+    performanceMonitor.startTimer(timerName, { agentId, deploymentId });
+    
+    try {
+      const client = createClient(deploymentId, accessToken);
+      const threads = await client.threads.search({
+        limit: 100,
+        metadata: {
+          assistant_id: agentId,
+        },
+      });
+      
+      performanceMonitor.endTimer(timerName, { 
+        threadsCount: threads.length,
+        fromCache: false
+      });
+      
+      return threads;
+    } catch (error) {
+      performanceMonitor.endTimer(timerName, { 
+        error: true,
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
   }
 
   isRequestActive(agentId: string, deploymentId: string): boolean {
@@ -306,12 +324,18 @@ export const ThreadHistorySidebar = forwardRef<
         fromCache: true,
       });
       
-      // Start background refresh for fresh data
-      setTimeout(() => {
-        if (session?.accessToken) {
-          fetchThreads(agentId, deploymentId, session.accessToken, true);
-        }
-      }, 100); // Small delay to prevent flash
+      // Start background refresh for fresh data only if cache is older than 1 minute
+      const cachedEntry = cache.get(agentId, deploymentId);
+      const cacheTimestamp = cachedEntry ? (cachedEntry as any).timestamp || 0 : 0;
+      const isStale = Date.now() - cacheTimestamp > 60000; // 1 minute
+      
+      if (isStale && session?.accessToken) {
+        setTimeout(() => {
+          if (session?.accessToken) {
+            fetchThreads(agentId, deploymentId, session.accessToken, true);
+          }
+        }, 100); // Small delay to prevent flash
+      }
     } else {
       // No cache, fetch immediately
       fetchThreads(agentId, deploymentId, session.accessToken);

@@ -8,16 +8,17 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/client";
 import { Run, Thread, ThreadStatus } from "@langchain/langgraph-sdk";
-import React, { Dispatch, SetStateAction, useTransition } from "react";
+import React, { Dispatch, SetStateAction, useTransition, useRef, useCallback } from "react";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 import { IMPROPER_SCHEMA } from "../constants";
 import {
   getInterruptFromThread,
-  processInterruptedThread,
   processThreadWithoutInterrupts,
 } from "./utils";
 import { logger } from "../utils/logger";
 import { useAuthContext } from "@/providers/Auth";
+import { ThreadBatchProcessor } from "../utils/thread-batch-processor";
+import { performanceMonitor } from "@/lib/performance-monitor";
 
 type ThreadContentType<
   ThreadValues extends Record<string, any> = Record<string, any>,
@@ -73,9 +74,40 @@ function ThreadsProviderInternal<
     ThreadData<Record<string, any>>[]
   >([]);
   const [hasMoreThreads, setHasMoreThreads] = React.useState(true);
+  
+  // Performance optimization: debounce requests and cache results
+  const requestCacheRef = useRef(new Map<string, Promise<ThreadData<Record<string, any>>[]>>());
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const batchProcessorRef = useRef(ThreadBatchProcessor.getInstance());
 
-  const fetchThreads = React.useCallback(
+  const fetchThreads = useCallback(
     async (agentId: string, deploymentId: string) => {
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      
+      // Create cache key for request deduplication
+      const cacheKey = `${agentId}:${deploymentId}:${inboxParam}:${offsetParam}:${limitParam}`;
+      
+      // Return existing promise if same request is already in flight
+      if (requestCacheRef.current.has(cacheKey)) {
+        const existingRequest = requestCacheRef.current.get(cacheKey)!;
+        try {
+          const cachedResult = await existingRequest;
+          setThreadData(cachedResult);
+          setHasMoreThreads(cachedResult.length === limitParam);
+          setLoading(false);
+          return;
+        } catch (_error) {
+          // If cached request failed, continue with new request
+          requestCacheRef.current.delete(cacheKey);
+        }
+      }
       if (!session?.accessToken) {
         toast.error("No access token found", {
           richColors: true,
@@ -92,147 +124,117 @@ function ThreadsProviderInternal<
       setLoading(true);
 
       const client = createClient(deploymentId, session.accessToken);
-
+      
+      // Create the request promise for caching
+      const requestPromise = executeThreadsFetch(client, agentId, abortController.signal);
+      requestCacheRef.current.set(cacheKey, requestPromise);
+      
       try {
-        // Use the values from queryParams
-        const limit = limitParam;
-        const offset = offsetParam;
-
-        if (!limit) {
-          throw new Error("Limit query param not found");
-        }
-
-        if (!offset && offset !== 0) {
-          throw new Error("Offset query param not found");
-        }
-
-        if (limit > 100) {
-          toast.error("Limit Exceeded", {
-            description: "Cannot fetch more than 100 threads at a time",
-            duration: 3000,
-          });
-          setLoading(false);
+        const processedData = await requestPromise;
+        
+        // Check if request was aborted
+        if (abortController.signal.aborted) {
           return;
         }
-
-        // Handle inbox filtering differently based on type
-        let statusInput: { status?: ThreadStatus } = {};
-        if (inboxParam !== "all" && inboxParam !== "human_response_needed") {
-          statusInput = { status: inboxParam as ThreadStatus };
-        }
-
-        const threadSearchArgs = {
-          offset,
-          limit,
-          ...statusInput,
-          metadata: {
-            assistant_id: agentId,
-          },
-        };
-
-        const threads = await client.threads.search(threadSearchArgs);
-
-        const processedData: ThreadData<ThreadValues>[] = [];
-
-        // Process threads in batches with Promise.all for better performance
-        const processPromises = threads.map(
-          async (thread): Promise<ThreadData<ThreadValues>> => {
-            const currentThread = thread as Thread<ThreadValues>;
-
-            // Handle special cases for human_response_needed inbox
-            if (
-              inboxParam === "human_response_needed" &&
-              currentThread.status !== "interrupted"
-            ) {
-              return {
-                status: "human_response_needed" as EnhancedThreadStatus,
-                thread: currentThread,
-                interrupts: undefined,
-                invalidSchema: undefined,
-              };
-            }
-
-            if (currentThread.status === "interrupted") {
-              // Try the faster processing method first
-              const processedThreadData =
-                processInterruptedThread(currentThread);
-              if (
-                processedThreadData &&
-                processedThreadData.interrupts?.length
-              ) {
-                return processedThreadData as ThreadData<ThreadValues>;
-              }
-
-              // Only if necessary, do the more expensive thread state fetch
-              try {
-                // Attempt to get interrupts from state only if necessary
-                const threadInterrupts = getInterruptFromThread(currentThread);
-                if (!threadInterrupts || threadInterrupts.length === 0) {
-                  const state = await client.threads.getState<ThreadValues>(
-                    currentThread.thread_id,
-                  );
-
-                  return processThreadWithoutInterrupts(currentThread, {
-                    thread_id: currentThread.thread_id,
-                    thread_state: state,
-                  }) as ThreadData<ThreadValues>;
-                }
-
-                // Return with the interrupts we found
-                return {
-                  status: "interrupted" as const,
-                  thread: currentThread,
-                  interrupts: threadInterrupts,
-                  invalidSchema: threadInterrupts.some(
-                    (interrupt) =>
-                      interrupt?.action_request?.action === IMPROPER_SCHEMA ||
-                      !interrupt?.action_request?.action,
-                  ),
-                };
-              } catch (_) {
-                // If all else fails, mark as invalid schema
-                return {
-                  status: "interrupted" as const,
-                  thread: currentThread,
-                  interrupts: undefined,
-                  invalidSchema: true,
-                };
-              }
-            } else {
-              // Non-interrupted threads are simple
-              return {
-                status: currentThread.status,
-                thread: currentThread,
-                interrupts: undefined,
-                invalidSchema: undefined,
-              } as ThreadData<ThreadValues>;
-            }
-          },
-        );
-
-        // Process all threads concurrently
-        const results = await Promise.all(processPromises);
-        processedData.push(...results);
-
-        const sortedData = processedData.sort((a, b) => {
-          return (
-            new Date(b.thread.created_at).getTime() -
-            new Date(a.thread.created_at).getTime()
-          );
-        });
-
-        setThreadData(sortedData);
-        setHasMoreThreads(threads.length === limit);
+        
+        setThreadData(processedData);
+        setHasMoreThreads(processedData.length === limitParam);
       } catch (e) {
+        // Check if request was aborted
+        if (abortController.signal.aborted) {
+          return;
+        }
+        
         logger.error("Failed to fetch threads", e);
         toast.error("Failed to load threads. Please try again.");
       } finally {
-        // Always reset loading state, even after errors
+        // Clean up cache and loading state
+        requestCacheRef.current.delete(cacheKey);
         setLoading(false);
+        
+        // Clear abort controller if it's the current one
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
       }
     },
-    [offsetParam, limitParam],
+    [offsetParam, limitParam, inboxParam, session?.accessToken, agentInboxId],
   );
+  
+  // Extracted method for the actual API calls to improve performance
+  const executeThreadsFetch = useCallback(async (
+    client: any,
+    agentId: string,
+    abortSignal: AbortSignal
+  ): Promise<ThreadData<Record<string, any>>[]> => {
+    const timerName = `fetch-threads-${agentId}`;
+    performanceMonitor.startTimer(timerName, { 
+      agentId, 
+      inbox: inboxParam, 
+      limit: limitParam, 
+      offset: offsetParam 
+    });
+
+      // Use the values from queryParams
+      const limit = limitParam;
+      const offset = offsetParam;
+
+      if (!limit) {
+        throw new Error("Limit query param not found");
+      }
+
+      if (!offset && offset !== 0) {
+        throw new Error("Offset query param not found");
+      }
+
+      if (limit > 100) {
+        throw new Error("Cannot fetch more than 100 threads at a time");
+      }
+
+      // Handle inbox filtering differently based on type
+      let statusInput: { status?: ThreadStatus } = {};
+      if (inboxParam !== "all" && inboxParam !== "human_response_needed") {
+        statusInput = { status: inboxParam as ThreadStatus };
+      }
+
+      const threadSearchArgs = {
+        offset,
+        limit,
+        ...statusInput,
+        metadata: {
+          assistant_id: agentId,
+        },
+      };
+
+      const threads = await client.threads.search(threadSearchArgs);
+      
+      // Check for abort before processing
+      if (abortSignal.aborted) {
+        throw new Error('Request aborted');
+      }
+
+      // Use optimized batch processor for better performance
+      const processedData = await batchProcessorRef.current.processThreadsBatch(
+        threads as Thread<ThreadValues>[],
+        client,
+        inboxParam,
+        abortSignal
+      );
+
+      const sortedData = processedData.sort((a, b) => {
+        return (
+          new Date(b.thread.created_at).getTime() -
+          new Date(a.thread.created_at).getTime()
+        );
+      });
+
+      performanceMonitor.endTimer(timerName, { 
+        threadsCount: sortedData.length,
+        hasExpensiveOperations: sortedData.some(d => d.status === 'interrupted' && !d.interrupts)
+      });
+
+      return sortedData;
+  }, [limitParam, offsetParam, inboxParam]);
 
   // Effect to fetch threads when parameters change
   React.useEffect(() => {
@@ -254,6 +256,14 @@ function ThreadsProviderInternal<
       // Always reset loading state in case of error
       setLoading(false);
     }
+    
+    // Cleanup function to abort ongoing requests when component unmounts or dependencies change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, [agentInboxId, inboxParam, offsetParam, limitParam, fetchThreads]);
 
   const fetchSingleThread = React.useCallback(
@@ -335,7 +345,7 @@ function ThreadsProviderInternal<
         return undefined;
       }
     },
-    [inboxParam],
+    [inboxParam, agentInboxId, session?.accessToken],
   );
 
   const ignoreThread = async (threadId: string) => {
