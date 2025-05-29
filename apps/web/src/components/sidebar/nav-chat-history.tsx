@@ -6,7 +6,7 @@ import { useQueryState } from "nuqs";
 import { createClient } from "@/lib/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, isToday, isYesterday, isThisWeek } from "date-fns";
+import { isToday, isYesterday, isThisWeek } from "date-fns";
 import { useAuthContext } from "@/providers/Auth";
 import { MessageContent } from "@langchain/core/messages";
 import { FileClock, MessageCircle, RefreshCw, AlertCircle } from "lucide-react";
@@ -346,14 +346,6 @@ function getFirstHumanMessageContent(thread: Thread) {
   }
 }
 
-const formatDate = (date: string) => {
-  try {
-    return format(new Date(date), "h:mm a");
-  } catch (e) {
-    console.error("Failed to format date", { date, error: e });
-    return "";
-  }
-};
 
 const getDateCategory = (dateString: string) => {
   const date = new Date(dateString);
@@ -802,9 +794,6 @@ export function NavChatHistory() {
                                 title="Conversation preloaded - instant access"
                               />
                             )}
-                          </div>
-                          <div className="text-muted-foreground text-xs">
-                            {formatDate(thread.created_at)}
                           </div>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
