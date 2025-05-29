@@ -38,7 +38,7 @@ const data = {
     //   icon: Inbox,
     // },
     {
-      title: "RAG",
+      title: "Knowledge Base",
       url: "/rag",
       icon: Brain,
     },

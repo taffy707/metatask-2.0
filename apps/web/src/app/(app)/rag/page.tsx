@@ -25,7 +25,7 @@ export default function RAGPage(): React.ReactNode {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>RAG</BreadcrumbPage>
+                <BreadcrumbPage>Knowledge Base</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

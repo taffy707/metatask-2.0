@@ -38,7 +38,7 @@ function SupportedConfigBadge({
           {type === "rag" && (
             <Badge variant="brand">
               <Brain />
-              RAG
+              Knowledge Base
             </Badge>
           )}
           {type === "tools" && (

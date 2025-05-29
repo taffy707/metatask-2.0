@@ -313,7 +313,7 @@ export const ConfigurationSidebar = forwardRef<
                 <TabsTrigger value="tools">Tools</TabsTrigger>
               )}
               {supportedConfigs.includes("rag") && (
-                <TabsTrigger value="rag">RAG</TabsTrigger>
+                <TabsTrigger value="rag">Knowledge Base</TabsTrigger>
               )}
               {supportedConfigs.includes("supervisor") && (
                 <TabsTrigger value="supervisor">Supervisor Agents</TabsTrigger>
@@ -432,7 +432,7 @@ export const ConfigurationSidebar = forwardRef<
                   value="rag"
                   className="m-0 overflow-y-auto p-4"
                 >
-                  <ConfigSection title="Agent RAG">
+                  <ConfigSection title="Agent Knowledge Base">
                     {agentId && (
                       <ConfigFieldRAG
                         id={ragConfigurations[0].label}
