@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Wrench, Bot, MessageCircle, Brain } from "lucide-react";
+import { Wrench, Bot, Brain, Plus } from "lucide-react";
 
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
@@ -18,9 +18,9 @@ import { SiteHeader } from "./sidebar-header";
 const data = {
   navMain: [
     {
-      title: "Chat",
+      title: "New Chat",
       url: "/",
-      icon: MessageCircle,
+      icon: Plus,
     },
     {
       title: "Agents",
