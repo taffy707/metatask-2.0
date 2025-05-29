@@ -5,6 +5,7 @@ import { Wrench, Bot, MessageCircle, Brain } from "lucide-react";
 
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
+import { NavChatHistory } from "./nav-chat-history";
 import {
   Sidebar,
   SidebarContent,
@@ -53,6 +54,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SiteHeader />
       <SidebarContent>
         <NavMain items={data.navMain} />
+        <NavChatHistory />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
