@@ -210,7 +210,7 @@ class ConversationCache {
       
       // Fetch thread state to get messages
       const state = await client.threads.getState(threadId);
-      const messages = state.values?.messages || [];
+      const messages = (state.values as any)?.messages || [];
       
       // Cache the messages
       this.set(agentId, deploymentId, threadId, messages);
