@@ -67,7 +67,7 @@ function ThreadsProviderInternal<
     parseAsString.withDefault("interrupted"),
   );
   const [offsetParam] = useQueryState("offset", parseAsInteger.withDefault(0));
-  const [limitParam] = useQueryState("limit", parseAsInteger.withDefault(10));
+  const [limitParam] = useQueryState("limit", parseAsInteger.withDefault(5)); // Reduced from 10 to 5 for faster loading
 
   const [loading, setLoading] = React.useState(false);
   const [threadData, setThreadData] = React.useState<
@@ -213,7 +213,20 @@ function ThreadsProviderInternal<
       
       while (retryCount <= maxRetries) {
         try {
-          threads = await client.threads.search(threadSearchArgs);
+          // Add timeout to thread search request
+          const searchPromise = client.threads.search(threadSearchArgs);
+          const timeoutPromise = new Promise((_, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('Thread search request timeout'));
+            }, 20000); // 20 second timeout
+            
+            abortSignal.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new Error('Request aborted'));
+            });
+          });
+          
+          threads = await Promise.race([searchPromise, timeoutPromise]);
           break; // Success, exit retry loop
         } catch (error: any) {
           retryCount++;

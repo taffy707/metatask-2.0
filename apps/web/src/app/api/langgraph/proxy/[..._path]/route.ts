@@ -19,6 +19,7 @@ import { getDeployments } from "@/lib/environment/deployments";
  */
 
 export const runtime = "edge";
+export const maxDuration = 25; // 25 second timeout for proxy requests
 
 /**
  * The dynamic route parameters for this API endpoint.
