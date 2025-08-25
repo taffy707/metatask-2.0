@@ -9,7 +9,7 @@ function getMCPUrlOrThrow() {
   }
 
   const url = new URL(process.env.NEXT_PUBLIC_BASE_API_URL);
-  url.pathname = `${url.pathname}${url.pathname.endsWith("/") ? "" : "/"}oap_mcp`;
+  url.pathname = `${url.pathname}${url.pathname.endsWith("/") ? "" : "/"}metatask_mcp`;
   return url;
 }
 

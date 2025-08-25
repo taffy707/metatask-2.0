@@ -8,7 +8,7 @@ import { Assistant } from "@langchain/langgraph-sdk";
  * Each user gets their own default agent in a deployment since they cannot
  * access the system-created default agent. This function checks if the given
  * agent has been marked as a user's default. This is NOT the primary agent
- * for the entire OAP deployment, but rather the default agent for a given graph.
+ * for the entire Meta Task deployment, but rather the default agent for a given graph.
  *
  * @param agent The agent to check
  * @returns True if the agent is a user's default agent
@@ -16,7 +16,7 @@ import { Assistant } from "@langchain/langgraph-sdk";
 export function isUserCreatedDefaultAssistant(
   agent: Agent | Assistant,
 ): boolean {
-  return agent.metadata?._x_oap_is_default === true;
+  return agent.metadata?._x_metatask_is_default === true;
 }
 
 /**
@@ -41,7 +41,7 @@ export function isSystemCreatedDefaultAssistant(
  * Determines if an agent is the primary assistant for a graph.
  *
  * A primary assistant is the default assistant for all graphs provided
- * to OAP. This can only be one agent, across all graphs & deployments,
+ * to Meta Task. This can only be one agent, across all graphs & deployments,
  * and is specified by setting `isDefault: true` and `defaultGraphId`
  * on a deployment in the `NEXT_PUBLIC_DEPLOYMENTS` environment variable.
  *
@@ -49,7 +49,7 @@ export function isSystemCreatedDefaultAssistant(
  * @returns True if the agent is the primary assistant for a graph
  */
 export function isPrimaryAssistant(agent: Agent | Assistant): boolean {
-  return agent.metadata?._x_oap_is_primary === true;
+  return agent.metadata?._x_metatask_is_primary === true;
 }
 
 export function isUserSpecifiedDefaultAgent(agent: Agent): boolean {

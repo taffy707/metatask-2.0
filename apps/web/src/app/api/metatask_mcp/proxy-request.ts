@@ -81,7 +81,7 @@ async function getMcpAccessToken(supabaseToken: string, mcpServerUrl: URL) {
 
 /**
  * Proxies requests from the client to the MCP server.
- * Extracts the path after '/api/oap_mcp', constructs the target URL,
+ * Extracts the path after '/api/metatask_mcp', constructs the target URL,
  * forwards the request with necessary headers and body, and injects
  * the MCP authorization token.
  *
@@ -99,10 +99,10 @@ export async function proxyRequest(req: NextRequest): Promise<Response> {
     );
   }
 
-  // Extract the path after '/api/oap_mcp/'
-  // Example: /api/oap_mcp/foo/bar -> /foo/bar
+  // Extract the path after '/api/metatask_mcp/'
+  // Example: /api/metatask_mcp/foo/bar -> /foo/bar
   const url = new URL(req.url);
-  const path = url.pathname.replace(/^\/api\/oap_mcp/, "");
+  const path = url.pathname.replace(/^\/api\/metatask_mcp/, "");
 
   // Construct the target URL
   const targetUrlObj = new URL(MCP_SERVER_URL);

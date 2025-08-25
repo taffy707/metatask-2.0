@@ -36,7 +36,7 @@ cd apps/web && yarn lint && yarn format
 
 ## Architecture Overview
 
-**Open Agent Platform (OAP)** - A no-code web application for building and managing LangGraph agents. Built as a Turborepo monorepo with Next.js frontend.
+**Meta Task** - A no-code web application for building and managing LangGraph agents. Built as a Turborepo monorepo with Next.js frontend.
 
 ### Key Components
 
@@ -59,13 +59,13 @@ cd apps/web && yarn lint && yarn format
 
 **Agent Configuration:**
 - Agents are custom configurations on LangGraph graphs (same as LangGraph "assistants")
-- UI fields defined via `x_oap_ui_config` metadata in LangGraph Zod schemas
+- UI fields defined via `x_metatask_ui_config` metadata in LangGraph Zod schemas
 - Configuration passed to LangGraph Platform deployments
 
 **API Integration:**
 - No standalone backend required - connects directly to LangGraph Platform
 - Proxy routes: `/api/langgraph/proxy/` for LangGraph API
-- MCP integration: `/api/oap_mcp/` for Model Context Protocol
+- MCP integration: `/api/metatask_mcp/` for Model Context Protocol
 
 **State Management:**
 - Zustand for client state

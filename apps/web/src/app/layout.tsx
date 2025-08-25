@@ -10,8 +10,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Open Agent Platform",
-  description: "Open Agent Platform by LangChain",
+  title: "Meta Task",
+  description: "Meta Task - AI Agent Platform",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function Layout({
