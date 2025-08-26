@@ -16,7 +16,7 @@ import { Assistant } from "@langchain/langgraph-sdk";
 export function isUserCreatedDefaultAssistant(
   agent: Agent | Assistant,
 ): boolean {
-  return agent.metadata?._x_metatask_is_default === true;
+  return agent.metadata?._x_oap_is_default === true;
 }
 
 /**
@@ -49,7 +49,7 @@ export function isSystemCreatedDefaultAssistant(
  * @returns True if the agent is the primary assistant for a graph
  */
 export function isPrimaryAssistant(agent: Agent | Assistant): boolean {
-  return agent.metadata?._x_metatask_is_primary === true;
+  return agent.metadata?._x_oap_is_primary === true;
 }
 
 export function isUserSpecifiedDefaultAgent(agent: Agent): boolean {

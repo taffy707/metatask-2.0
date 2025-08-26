@@ -18,6 +18,7 @@ import {
 import { useAuthContext } from "@/providers/Auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { googleAuthDisabled } from "@/lib/utils";
+import { MetaTaskLogoSVG } from "@/components/icons/metatask";
 
 export default function SigninInterface() {
   const { signIn, signInWithGoogle, isAuthenticated } = useAuthContext();
@@ -107,9 +108,17 @@ export default function SigninInterface() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center py-10">
+    <div 
+      className="flex min-h-screen items-center justify-center py-10"
+      style={{
+        background: 'linear-gradient(to right, #191654, #43C6AC)'
+      }}
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
+          <div className="flex justify-center mb-4">
+            <MetaTaskLogoSVG width={120} height={64} />
+          </div>
           <CardTitle className="text-center text-2xl">Sign In</CardTitle>
           <CardDescription className="text-center">
             Welcome back to Meta Task
