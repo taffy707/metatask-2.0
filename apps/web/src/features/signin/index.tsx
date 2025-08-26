@@ -51,7 +51,7 @@ export default function SigninInterface() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/");
+      router.push("/app");
     }
   }, [isAuthenticated, router]);
 
@@ -137,11 +137,11 @@ export default function SigninInterface() {
                 <span>Success! We're redirecting you to the dashboard...</span>
                 {showManualRedirect && (
                   <Button
-                    onClick={() => router.push("/")}
+                    onClick={() => router.push("/app")}
                     variant="outline"
                     className="mt-2 border-green-300 text-green-700 hover:bg-green-100"
                   >
-                    Go to Dashboard Now
+                    Go to App Now
                   </Button>
                 )}
               </AlertDescription>

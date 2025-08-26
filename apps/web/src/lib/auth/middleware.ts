@@ -10,6 +10,10 @@ const NO_AUTH_PATHS = [
   "/api/auth",
 ];
 
+const PUBLIC_PATHS = [
+  "/",  // Landing page - public but redirects authenticated users
+];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -51,6 +55,18 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Handle landing page: redirect authenticated users to app
+  if (PUBLIC_PATHS.includes(request.nextUrl.pathname)) {
+    if (user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/app";
+      return NextResponse.redirect(url);
+    }
+    // Allow unauthenticated users to see landing page
+    return supabaseResponse;
+  }
+
+  // Handle protected routes: redirect unauthenticated users to signin
   if (
     !user &&
     !NO_AUTH_PATHS.some((path) => request.nextUrl.pathname.startsWith(path))
@@ -70,20 +86,20 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If the user is authenticated, and they are trying to access an auth page, redirect them to the home page
+  // If the user is authenticated, and they are trying to access an auth page, redirect them to the app
   if (
     user &&
-    NO_AUTH_PATHS.some((path) => request.nextUrl.pathname.startsWith(path))
+    NO_AUTH_PATHS.slice(1).some((path) => request.nextUrl.pathname.startsWith(path))  // Exclude "/" from redirect check
   ) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/app";
     return NextResponse.redirect(url);
   }
 
-  // Redirect users from the /inbox page to the homepage
+  // Redirect users from the /inbox page to the app
   if (request.nextUrl.pathname.startsWith("/inbox")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/app";
     return NextResponse.redirect(url);
   }
 
