@@ -1,6 +1,9 @@
 "use client";
 
-import AgentsInterface from "@/features/agents";
+import { Suspense } from "react";
+import AgentsInterface from "@/features/agents/index";
+
+export const dynamic = 'force-dynamic';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,7 +20,7 @@ import React from "react";
  */
 export default function AgentsPage(): React.ReactNode {
   return (
-    <React.Suspense fallback={<div>Loading (layout)...</div>}>
+    <>
       <Toaster />
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
         <div className="flex items-center gap-2 px-4">
@@ -31,7 +34,9 @@ export default function AgentsPage(): React.ReactNode {
           </Breadcrumb>
         </div>
       </header>
-      <AgentsInterface />
-    </React.Suspense>
+      <Suspense fallback={<div className="flex h-full w-full flex-col items-center justify-center"><div className="text-lg">Loading agents...</div></div>}>
+        <AgentsInterface />
+      </Suspense>
+    </>
   );
 }

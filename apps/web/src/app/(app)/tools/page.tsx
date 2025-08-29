@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import ToolsInterface from "@/features/tools";
 import {
   Breadcrumb,
@@ -31,7 +33,9 @@ export default function ToolsPage(): React.ReactNode {
           </Breadcrumb>
         </div>
       </header>
-      <ToolsInterface />
+      <React.Suspense fallback={<div>Loading tools...</div>}>
+        <ToolsInterface />
+      </React.Suspense>
     </React.Suspense>
   );
 }

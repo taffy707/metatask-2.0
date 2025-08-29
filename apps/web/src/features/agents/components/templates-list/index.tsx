@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CreateAgentDialog } from "../create-edit-agent-dialogs/create-agent-dialog";
@@ -114,10 +114,12 @@ export function TemplatesList() {
         </div>
       )}
 
-      <CreateAgentDialog
-        open={false}
-        onOpenChange={() => {}}
-      />
+      <Suspense fallback={null}>
+        <CreateAgentDialog
+          open={false}
+          onOpenChange={() => {}}
+        />
+      </Suspense>
     </div>
   );
 }

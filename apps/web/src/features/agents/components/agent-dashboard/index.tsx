@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import { Filter, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,10 +160,12 @@ export function AgentDashboard() {
       )}
 
       {/* TODO: Replace with EditAgentDialog */}
-      <CreateAgentDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-      />
+      <Suspense fallback={null}>
+        <CreateAgentDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+        />
+      </Suspense>
     </div>
   );
 }

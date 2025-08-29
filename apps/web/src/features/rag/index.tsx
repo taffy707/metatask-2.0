@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import {
   DocumentsCard,
   DocumentsCardLoading,
@@ -13,7 +13,7 @@ import {
 import { useRagContext } from "./providers/RAG";
 import EmptyCollectionsState from "./components/empty-collections";
 
-export default function RAGInterface() {
+function RAGInterfaceInner() {
   const {
     selectedCollection,
     setSelectedCollection,
@@ -57,5 +57,13 @@ export default function RAGInterface() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RAGInterface() {
+  return (
+    <Suspense fallback={<div className="flex h-full w-full flex-col items-center justify-center"><div className="text-lg">Loading knowledge base...</div></div>}>
+      <RAGInterfaceInner />
+    </Suspense>
   );
 }

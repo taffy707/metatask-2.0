@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { AgentInbox } from "@/components/agent-inbox";
 import React from "react";
 import { ThreadsProvider } from "@/components/agent-inbox/contexts/ThreadContext";

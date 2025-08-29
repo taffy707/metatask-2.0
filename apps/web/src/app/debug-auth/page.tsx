@@ -1,9 +1,10 @@
-"use client";
+export const dynamic = 'force-dynamic';
 
 import { AuthDebug } from "@/components/auth/debug";
 import { AuthProvider } from "@/providers/Auth";
 
 export default function DebugAuthPage() {
+  
   return (
     <AuthProvider>
       <div className="mx-auto flex flex-col items-center px-4 py-10">
