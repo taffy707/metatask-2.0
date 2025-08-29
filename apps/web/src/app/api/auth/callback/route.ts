@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function GET(request: NextRequest) {
-  console.log("OAuth callback hit:", request.url);
+  console.warn("OAuth callback hit:", request.url);
   
   try {
     // Parse the URL and get parameters
@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
     const code = requestUrl.searchParams.get("code");
     const error = requestUrl.searchParams.get("error");
 
-    console.log("OAuth callback - Code:", code ? "present" : "missing");
-    console.log("OAuth callback - Error:", error);
+    console.warn("OAuth callback - Code:", code ? "present" : "missing");
+    console.warn("OAuth callback - Error:", error);
 
     // Handle error from OAuth provider
     if (error) {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         throw new Error("Missing Supabase configuration");
       }
 
-      let response = NextResponse.redirect(new URL(redirectTo, request.url));
+      const response = NextResponse.redirect(new URL(redirectTo, request.url));
 
       const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
         cookies: {
@@ -56,13 +56,13 @@ export async function GET(request: NextRequest) {
         throw exchangeError;
       }
 
-      console.log("Session exchange successful:", data.session ? "session created" : "no session");
+      console.warn("Session exchange successful:", data.session ? "session created" : "no session");
 
       return response;
     }
 
     // No code parameter - redirect to sign-in
-    console.log("No code parameter found, redirecting to signin");
+    console.warn("No code parameter found, redirecting to signin");
     return NextResponse.redirect(new URL("/signin", request.url));
 
   } catch (error) {

@@ -8,10 +8,9 @@ import { SourceTracingSection } from "@/components/landing/source-tracing-sectio
 import { CTASection } from "@/components/landing/cta-section"
 import { Footer } from "@/components/landing/footer"
 import { useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
 export default function LandingPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
