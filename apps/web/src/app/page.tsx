@@ -7,10 +7,10 @@ import { StickyScrollSection } from "@/components/landing/sticky-scroll-section"
 import { SourceTracingSection } from "@/components/landing/source-tracing-section"
 import { CTASection } from "@/components/landing/cta-section"
 import { Footer } from "@/components/landing/footer"
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 
-export default function LandingPage() {
+function OAuthCallbackHandler() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -30,8 +30,15 @@ export default function LandingPage() {
     }
   }, [searchParams])
 
+  return null
+}
+
+export default function LandingPage() {
   return (
     <main>
+      <Suspense fallback={null}>
+        <OAuthCallbackHandler />
+      </Suspense>
       <HeroSection />
       <VideoSection />
       <EvervaultSection />
