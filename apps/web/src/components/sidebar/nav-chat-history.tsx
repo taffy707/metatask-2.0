@@ -393,7 +393,7 @@ type ThreadsState = {
 
 export function NavChatHistory() {
   const pathname = usePathname();
-  const isOnChatPage = pathname === "/";
+  const isOnChatPage = pathname === "/" || pathname === "/app";
   const { session } = useAuthContext();
   const [threadId, setThreadId] = useQueryState("threadId");
   const [agentId] = useQueryState("agentId");
